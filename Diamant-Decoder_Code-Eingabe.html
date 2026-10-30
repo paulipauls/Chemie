@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Diamant-Decoder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=Share+Tech+Mono&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<style>
+/* Layout: ein Tresor-Bedienpult. Oben Uhr + Fortschritt, Mitte Schlüsselschacht mit 4 Steckplätzen, darunter das Schlüsselbrett; Spielleitung klappt unten auf. Bewusst nur dunkel (Gerät). */
+:root {
+  color-scheme: dark;
+  --night: #0d162b;        /* Seitengrund */
+  --steel: #16223d;        /* Gehäuse */
+  --steel-2: #1e2d4f;      /* Mulden, Steckplätze */
+  --line: #2c3d63;
+  --brass: #c9a227;        /* Akzent: Messing */
+  --brass-soft: rgba(201,162,39,.16);
+  --ice: #5ec2ec;          /* Diamant-Blau */
+  --parch: #f1e4c8;        /* Schlüsselkarten-Papier */
+  --parch-ink: #17213b;
+  --text: #e8ecf5;
+  --muted: #9aa7c2;
+  --ok: #3ccf86;
+  --bad: #ff4b4f;
+  --f-display: "Saira Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-lcd: "Share Tech Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --r: 10px;
+}
+html, body { min-height: 100%; }
+body {
+  background: radial-gradient(1200px 600px at 50% -10%, #1b2b52 0%, var(--night) 60%) fixed, var(--night);
+  color: var(--text); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+}
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+  display: grid; gap: 18px;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, .key:focus-visible, .slot:focus-visible { outline: 3px solid var(--ice); outline-offset: 3px; }
+
+/* ---------- Kopf ---------- */
+.head { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: stretch; }
+.brand { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.gem { width: 46px; height: 46px; flex: none; }
+.brand h1 { margin: 0; font-family: var(--f-display); font-weight: 800; font-size: clamp(26px, 4vw, 38px); letter-spacing: .02em; line-height: 1; text-transform: uppercase; }
+.brand p { margin: 4px 0 0; color: var(--brass); font-family: var(--f-display); font-weight: 700; letter-spacing: .14em; font-size: 13px; text-transform: uppercase; }
+
+.clock {
+  background: #050a14; border: 2px solid var(--line); border-radius: var(--r);
+  padding: 8px 18px 10px; text-align: center; min-width: 230px;
+  box-shadow: inset 0 0 0 4px #0a1222, 0 8px 24px rgba(0,0,0,.35);
+}
+.clock .lbl { font-family: var(--f-display); font-weight: 700; letter-spacing: .18em; font-size: 11px; color: var(--muted); text-transform: uppercase; }
+.clock .time { font-family: var(--f-lcd); font-size: clamp(46px, 7vw, 64px); line-height: 1; color: var(--ice); text-shadow: 0 0 18px rgba(94,194,236,.45); font-variant-numeric: tabular-nums; }
+.clock.warn .time { color: #ffc23d; text-shadow: 0 0 18px rgba(255,194,61,.45); }
+.clock.over .time { color: var(--bad); text-shadow: 0 0 18px rgba(255,75,79,.5); }
+.clock.paused .time { opacity: .45; }
+.clock .sub { font-size: 12px; color: var(--muted); min-height: 1.3em; }
+
+/* ---------- Fortschritt ---------- */
+.parts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.part {
+  display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r);
+  background: var(--steel); border: 1px solid var(--line); min-width: 0;
+}
+.part .n { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-display); font-weight: 800; background: var(--steel-2); color: var(--muted); }
+.part b { display: block; font-family: var(--f-display); font-size: 16px; letter-spacing: .03em; }
+.part small { color: var(--muted); font-size: 12px; }
+.part.now { border-color: var(--brass); background: linear-gradient(0deg, var(--brass-soft), var(--brass-soft)), var(--steel); }
+.part.now .n { background: var(--brass); color: var(--night); }
+.part.done .n { background: var(--ok); color: var(--night); }
+.part.done small { color: var(--ok); }
+
+/* ---------- Schlüsselschacht ---------- */
+.console {
+  background: linear-gradient(180deg, #1a2949, var(--steel)); border: 1px solid var(--line); border-radius: 16px;
+  padding: 18px; display: grid; gap: 16px; position: relative;
+}
+.console-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.console h2 { margin: 0; font-family: var(--f-display); font-size: 22px; letter-spacing: .04em; text-transform: uppercase; }
+.console h2 span { color: var(--brass); }
+.hint-line { color: var(--muted); font-size: 13px; }
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-width: 620px; width: 100%; }
+.slot {
+  aspect-ratio: 3 / 4; border-radius: 12px; border: 2px dashed #3b5080; background: #0b1426;
+  display: grid; place-items: center; position: relative; padding: 0; min-width: 0;
+}
+.slot .pos { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; }
+.slot .pos i { width: 7px; height: 7px; border-radius: 50%; background: #3b5080; }
+.slot.filled { border-style: solid; border-color: var(--brass); background: #0b1426; padding: 6px; }
+.slot.filled .pos { display: none; }
+.slot .empty { color: #4d6394; font-family: var(--f-display); font-weight: 700; letter-spacing: .1em; font-size: 12px; text-transform: uppercase; }
+.slot .key { width: 100%; height: 100%; cursor: pointer; }
+.console.shake { animation: shake .45s; }
+.console.flash-ok { box-shadow: 0 0 0 3px var(--ok), 0 0 40px rgba(60,207,134,.35); }
+.console.flash-bad { box-shadow: 0 0 0 3px var(--bad), 0 0 40px rgba(255,75,79,.35); }
+@keyframes shake { 20%,60% { transform: translateX(-8px) } 40%,80% { transform: translateX(8px) } }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--steel-2); border-radius: 999px; padding: 10px 18px;
+  font-family: var(--f-display); font-weight: 700; letter-spacing: .06em; font-size: 16px; text-transform: uppercase;
+}
+.btn:hover { border-color: #4a6197; }
+.btn.primary { background: var(--brass); border-color: var(--brass); color: var(--night); padding-inline: 26px; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+.btn.ghost { background: transparent; }
+.btn.danger { border-color: rgba(255,75,79,.6); color: #ff9a9c; }
+
+.msg { min-height: 1.5em; font-weight: 600; }
+.msg.ok { color: var(--ok); }
+.msg.bad { color: #ff8a8d; }
+
+/* ---------- Schlüsselbrett ---------- */
+.board { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+.key {
+  background: var(--parch); color: var(--parch-ink); border: 0; border-radius: 9px; padding: 0;
+  aspect-ratio: 3 / 4; display: grid; grid-template-rows: 16% 1fr auto; overflow: hidden;
+  box-shadow: 0 3px 0 #b9a77e, 0 6px 14px rgba(0,0,0,.35); transition: transform .12s, opacity .12s;
+  min-width: 0;
+}
+.key:hover:not(:disabled) { transform: translateY(-3px); }
+.key:disabled { opacity: .22; cursor: default; transform: none; box-shadow: none; }
+.key .kh { background: var(--parch-ink); display: flex; align-items: center; justify-content: space-between; gap: 4px; padding-inline: 7%; min-width: 0; }
+.key .kh svg { width: 22%; height: auto; flex: none; }
+.key .kh em { font-style: normal; font-family: var(--f-display); font-weight: 700; letter-spacing: .06em; color: var(--text); font-size: clamp(8px, .85vw, 11px); white-space: nowrap; overflow: hidden; }
+.key .sym { display: grid; place-items: center; align-content: center; padding-top: 4%; }
+.key .sym > span { display: grid; justify-items: center; width: 100%; }
+.key .sym svg { width: 40%; height: auto; display: block; }
+.key .sym small { display: block; font-size: clamp(8px, .8vw, 10px); color: #6b6250; text-align: center; margin-top: 2px; font-weight: 600; }
+.slot.filled .key .kh em { font-size: clamp(9px, 1.4vw, 14px); }
+.slot.filled .key .sym small { font-size: clamp(9px, 1.3vw, 13px); }
+.slot.filled .key .lv .l { font-size: clamp(22px, 4.2vw, 44px); }
+.slot.filled .key .lv .v { font-size: clamp(15px, 2.8vw, 30px); }
+.key .lv { display: flex; justify-content: space-around; align-items: center; padding: 4% 6% 10%; }
+.key .lv .l { font-family: var(--f-display); font-weight: 800; font-size: clamp(18px, 2.4vw, 28px); line-height: 1; }
+.key .lv .v { width: 42%; aspect-ratio: 1; border-radius: 50%; background: #fbe9a6; border: 2px solid var(--parch-ink); display: grid; place-items: center; font-family: var(--f-display); font-weight: 800; font-size: clamp(13px, 1.7vw, 20px); font-variant-numeric: tabular-nums; }
+
+/* ---------- Spielleitung & Protokoll ---------- */
+.lower { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: start; }
+.panel { background: var(--steel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; min-width: 0; }
+.panel h3 { margin: 0 0 10px; font-family: var(--f-display); letter-spacing: .1em; font-size: 14px; color: var(--brass); text-transform: uppercase; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.stat { background: var(--steel-2); border-radius: 8px; padding: 8px 10px; }
+.stat b { display: block; font-family: var(--f-lcd); font-size: 22px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 220px; overflow: auto; }
+.log li { display: grid; grid-template-columns: 52px 1fr; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: 6px; background: var(--steel-2); }
+.log li time { font-family: var(--f-lcd); color: var(--muted); }
+.log li.ok { box-shadow: inset 3px 0 0 var(--ok); }
+.log li.bad { box-shadow: inset 3px 0 0 var(--bad); }
+.log li.info { box-shadow: inset 3px 0 0 var(--brass); }
+.log .empty { color: var(--muted); background: transparent; display: block; padding: 0; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row + .row { margin-top: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 8px 14px; font-family: var(--f-display); font-weight: 700; letter-spacing: .05em; }
+.seg button[aria-pressed="true"] { background: var(--brass); color: var(--night); }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 10px; border-radius: 8px; background: rgba(255,75,79,.12); border: 1px solid rgba(255,75,79,.4); }
+.small { font-size: 12px; color: var(--muted); }
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+  background: rgba(5,10,20,.82); backdrop-filter: blur(4px);
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.overlay[hidden] { display: none; }
+.card {
+  width: min(560px, 100%); background: linear-gradient(180deg, #1c2c50, var(--steel)); border: 1px solid var(--brass);
+  border-radius: 16px; padding: 26px; text-align: center; display: grid; gap: 14px; justify-items: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,.5);
+}
+.card h2 { margin: 0; font-family: var(--f-display); font-weight: 800; font-size: clamp(28px, 5vw, 40px); letter-spacing: .02em; text-transform: uppercase; text-wrap: balance; line-height: 1.05; }
+.card p { margin: 0; color: var(--muted); max-width: 46ch; }
+.card .big { font-family: var(--f-lcd); font-size: 44px; color: var(--ice); }
+.card.ok { border-color: var(--ok); }
+.card.ok h2 { color: var(--ok); }
+.card .env { font-family: var(--f-display); font-weight: 800; font-size: 22px; color: var(--brass); letter-spacing: .06em; text-transform: uppercase; }
+.card .gem { width: 70px; height: 70px; }
+
+@media (max-width: 860px) {
+  .board { grid-template-columns: repeat(4, 1fr); }
+  .lower { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .head { grid-template-columns: 1fr; }
+  .clock { min-width: 0; }
+  .parts { grid-template-columns: 1fr; }
+  .slots { gap: 8px; }
+  .console { padding: 14px; }
+  .stats { grid-template-columns: repeat(3, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="brand">
+      <svg class="gem" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 18 15 8h18l9 10L24 42Z" fill="#5ec2ec" stroke="#c9a227" stroke-width="2" stroke-linejoin="round"/><path d="M6 18h36M15 8l4 10 5 24 5-24 4-10M19 18l5-10 5 10" fill="none" stroke="#0d162b" stroke-width="1.4" stroke-linejoin="round" opacity=".55"/></svg>
+      <div>
+        <h1>Diamant-Decoder</h1>
+        <p>Operation Blauer Komet · Code-Eingabe</p>
+      </div>
+    </div>
+    <div class="clock" id="clock" aria-live="off">
+      <div class="lbl" id="clockLbl">Restzeit</div>
+      <div class="time" id="time">60:00</div>
+      <div class="sub" id="clockSub">Noch nicht gestartet</div>
+    </div>
+  </header>
+
+  <section class="parts" id="parts" aria-label="Fortschritt"></section>
+
+  <section class="console" id="console" aria-labelledby="consoleTitle">
+    <div class="console-top">
+      <h2 id="consoleTitle">Code <span id="codeNo">1</span> eingeben</h2>
+      <div class="hint-line">Schlüssel antippen → Platz ● bis ●●●● füllen. Steckplatz antippen = Schlüssel zurück.</div>
+    </div>
+    <div class="slots" id="slots"></div>
+    <div class="actions">
+      <button class="btn primary" id="check" type="button">Code prüfen</button>
+      <button class="btn ghost" id="clear" type="button">Alle Schlüssel zurück</button>
+    </div>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+  </section>
+
+  <section aria-label="Schlüsselbrett">
+    <div class="board" id="board"></div>
+  </section>
+
+  <section class="lower">
+    <div class="panel">
+      <h3>Protokoll</h3>
+      <div class="stats">
+        <div class="stat"><b id="sErr">0</b><span>Fehlversuche</span></div>
+        <div class="stat"><b id="sHint">0</b><span>Hinweise</span></div>
+        <div class="stat"><b id="sPen">0:00</b><span>Zeitstrafen</span></div>
+      </div>
+      <ul class="log" id="log"></ul>
+    </div>
+    <div class="panel">
+      <h3>Spielleitung</h3>
+      <div class="row">
+        <span class="small">Spielzeit:</span>
+        <div class="seg" id="durSeg" role="group" aria-label="Spielzeit">
+          <button type="button" data-min="50">50 Min.</button>
+          <button type="button" data-min="60">60 Min.</button>
+          <button type="button" data-min="75">75 Min.</button>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" id="pause" type="button">Pause</button>
+        <button class="btn" id="hint" type="button">Hinweis gegeben (−2 Min.)</button>
+      </div>
+      <div class="row">
+        <button class="btn ghost" id="minus" type="button">−1 Min.</button>
+        <button class="btn ghost" id="plus" type="button">+1 Min.</button>
+        <button class="btn ghost" id="sound" type="button" aria-pressed="true">Ton an</button>
+        <button class="btn ghost" id="fs" type="button">Vollbild</button>
+      </div>
+      <div class="row" id="resetRow">
+        <button class="btn danger" id="reset" type="button">Neues Spiel</button>
+      </div>
+      <p class="small" style="margin:10px 0 0">Der Spielstand bleibt in diesem Browser erhalten, auch wenn die Seite neu geladen wird.</p>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="ovStart" hidden>
+  <div class="card">
+    <svg class="gem" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 18 15 8h18l9 10L24 42Z" fill="#5ec2ec" stroke="#c9a227" stroke-width="2" stroke-linejoin="round"/><path d="M6 18h36M15 8l4 10 5 24 5-24 4-10M19 18l5-10 5 10" fill="none" stroke="#0d162b" stroke-width="1.4" stroke-linejoin="round" opacity=".55"/></svg>
+    <h2>Bereit für den Coup?</h2>
+    <p>Drei Codes, je vier Schlüssel. Ein falscher Code kostet 1 Minute, ein Hinweis 2 Minuten. Mit dem Start beginnt die Zeit zu laufen – öffnet dann Umschlag 1.</p>
+    <div class="big" id="startTime">60:00</div>
+    <button class="btn primary" id="start" type="button">Zeit starten</button>
+  </div>
+</div>
+
+<div class="overlay" id="ovOk" hidden>
+  <div class="card ok">
+    <h2 id="okTitle">Code 1 richtig!</h2>
+    <p id="okText">Die Tür zur Lieferrampe springt auf.</p>
+    <div class="env" id="okEnv">Öffnet jetzt Umschlag 2</div>
+    <button class="btn primary" id="okBtn" type="button">Weiter</button>
+  </div>
+</div>
+
+<div class="overlay" id="ovWin" hidden>
+  <div class="card ok">
+    <svg class="gem" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 18 15 8h18l9 10L24 42Z" fill="#5ec2ec" stroke="#c9a227" stroke-width="2" stroke-linejoin="round"/><path d="M6 18h36M15 8l4 10 5 24 5-24 4-10M19 18l5-10 5 10" fill="none" stroke="#0d162b" stroke-width="1.4" stroke-linejoin="round" opacity=".55"/></svg>
+    <h2>Coup gelungen!</h2>
+    <p id="winText">Der Blaue Komet ist in eurer Tasche – und ihr seid über alle Dächer.</p>
+    <div class="big" id="winTime">–</div>
+    <p id="winStats"></p>
+    <button class="btn" id="winClose" type="button">Zum Protokoll</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Daten ----------
+  const KEYS = [ // id: [Form, Farbe, Zahl, Buchstabe]
+    ["tri","rot",9,"L"],["tri","blau",31,"R"],["tri","grün",15,"M"],["tri","gelb",3,"Z"],
+    ["circ","rot",20,"D"],["circ","blau",17,"W"],["circ","grün",8,"P"],["circ","gelb",13,"B"],
+    ["sq","rot",27,"A"],["sq","blau",10,"F"],["sq","grün",21,"N"],["sq","gelb",12,"K"],
+    ["dia","rot",5,"E"],["dia","blau",6,"H"],["dia","grün",36,"T"],["dia","gelb",24,"S"]];
+  const ORDER = [5,12,1,10,15,2,8,13,0,7,14,3,11,6,9,4]; // wie auf dem Schlüsselbogen
+  const COL = { rot:"#d62828", blau:"#1d4ed8", "grün":"#2a9d3f", gelb:"#f2b705" };
+  const SHAPE_NAME = { tri:"Dreieck", circ:"Kreis", sq:"Quadrat", dia:"Raute" };
+  const PARTS = [
+    { name:"Der Einstieg", sub:"Umschlag 1", ok:"Die Alarmanlage schweigt, die Tür zur Lieferrampe springt auf. Ihr seid drin!" },
+    { name:"Durch die Ausstellung", sub:"Umschlag 2", ok:"Laser, Druckplatten und Wachmann Huber – alles überlistet. Der Tresorraum liegt vor euch." },
+    { name:"Tresor & Flucht", sub:"Umschlag 3", ok:"" }];
+  const HASH = ["3d2ec261","8ab0cf8e","f6a11c0d"];
+  const h = s => { let x = 0x811c9dc5; for (const c of s) { x ^= c.codePointAt(0); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8,"0"); };
+  const isRight = (p, ids) => h("OBK|" + (p+1) + "|" + ids.join("-") + "|lumen") === HASH[p];
+
+  // ---------- Zustand ----------
+  const LS = "obk-decoder-v1";
+  const fresh = () => ({ phase:"ready", dur:60, part:0, slots:[], startedAt:0, pausedMs:0, pauseAt:0, penMs:0, errors:0, hints:0, log:[], endAt:0, sound:true });
+  let S = fresh();
+  try { const raw = localStorage.getItem(LS); if (raw) S = Object.assign(fresh(), JSON.parse(raw)); } catch (e) {}
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
+
+  const $ = id => document.getElementById(id);
+  const now = () => Date.now();
+  const elapsed = () => {
+    if (S.phase === "ready") return 0;
+    const end = S.phase === "won" ? S.endAt : (S.phase === "paused" ? S.pauseAt : now());
+    return end - S.startedAt - S.pausedMs;
+  };
+  const remaining = () => S.dur * 60000 - elapsed() - S.penMs;
+  const fmt = ms => { const neg = ms < 0; ms = Math.abs(ms); const t = Math.floor(ms / 1000); const m = Math.floor(t / 60), s = t % 60; return (neg ? "+" : "") + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0"); };
+  const clockStamp = () => fmt(Math.max(0, elapsed())).replace("+","");
+
+  // ---------- Ton ----------
+  let ac = null;
+  const audio = () => { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (ac && ac.state === "suspended") ac.resume(); return ac; };
+  function tone(f, t0, dur, type = "triangle", vol = .18) {
+    const a = audio(); if (!a || !S.sound) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.value = f; o.connect(g); g.connect(a.destination);
+    const t = a.currentTime + t0;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .02); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.start(t); o.stop(t + dur + .05);
+  }
+  const fanfare = () => { [523,659,784,1047].forEach((f,i) => tone(f, i*.13, .35)); tone(784, .6, .25); tone(1047, .78, .7, "triangle", .22); };
+  const buzzer = () => { tone(140, 0, .5, "sawtooth", .16); tone(110, .05, .55, "square", .08); };
+  const click = () => tone(880, 0, .05, "square", .05);
+  const alarm = () => { for (let i = 0; i < 6; i++) { tone(880, i*.5, .25, "square", .12); tone(660, i*.5+.25, .25, "square", .12); } };
+
+  // ---------- Rendering ----------
+  function shapeSVG(shape, color, w = 40) {
+    const c = COL[color], s = 'stroke="#17213b" stroke-width="2.4" stroke-linejoin="round"';
+    const body = shape === "circ" ? `<circle cx="20" cy="20" r="15.5" fill="${c}" ${s}/>`
+      : shape === "sq" ? `<rect x="5.5" y="5.5" width="29" height="29" fill="${c}" ${s}/>`
+      : shape === "tri" ? `<path d="M20 4 36.5 34H3.5Z" fill="${c}" ${s}/>`
+      : `<path d="M20 2.5 34 20 20 37.5 6 20Z" fill="${c}" ${s}/>`;
+    return `<svg viewBox="0 0 40 40" width="${w}" aria-hidden="true">${body}</svg>`;
+  }
+  const keyIcon = `<svg viewBox="0 0 28 14" aria-hidden="true"><circle cx="6" cy="7" r="4" fill="none" stroke="#c9a227" stroke-width="2"/><path d="M10 7h16M22 7v4M26 7v4" stroke="#c9a227" stroke-width="2" fill="none"/></svg><em>SCHLÜSSEL</em>`;
+  function keyHTML(id) {
+    const [sh, col, num, let_] = KEYS[id];
+    return `<span class="kh">${keyIcon}</span><span class="sym"><span>${shapeSVG(sh, col)}<small>${col}</small></span></span><span class="lv"><span class="l">${let_}</span><span class="v">${num}</span></span>`;
+  }
+  const keyLabel = id => { const [sh, col, num, l] = KEYS[id]; return `Schlüssel ${SHAPE_NAME[sh]} ${col}, Buchstabe ${l}, Zahl ${num}`; };
+
+  function renderParts() {
+    $("parts").innerHTML = PARTS.map((p, i) => {
+      const cls = S.phase === "won" || i < S.part ? "done" : (i === S.part ? "now" : "");
+      const state = cls === "done" ? "Code freigegeben" : (cls === "now" ? (S.phase === "ready" ? "Startet mit der Zeit" : "Läuft") : "Noch verschlossen");
+      return `<div class="part ${cls}"><span class="n">${cls === "done" ? "✓" : i + 1}</span><span><b>${p.name}</b><small>${p.sub} · ${state}</small></span></div>`;
+    }).join("");
+    $("codeNo").textContent = Math.min(S.part + 1, 3);
+  }
+  function renderSlots() {
+    const el = $("slots"); el.innerHTML = "";
+    for (let i = 0; i < 4; i++) {
+      const id = S.slots[i];
+      const b = document.createElement("button"); b.type = "button"; b.className = "slot" + (id != null ? " filled" : ""); b.id = "slot" + i;
+      if (id != null) { b.innerHTML = `<span class="key" aria-hidden="true">${keyHTML(id)}</span>`; b.setAttribute("aria-label", `Platz ${i+1}: ${keyLabel(id)} – antippen zum Entfernen`); }
+      else { b.innerHTML = `<span class="pos">${"<i></i>".repeat(i+1)}</span><span class="empty">Platz ${i+1}</span>`; b.setAttribute("aria-label", `Platz ${i+1}, leer`); }
+      b.addEventListener("click", () => { if (S.slots[i] == null || locked()) return; S.slots.splice(i, 1); click(); save(); renderSlots(); renderBoard(); });
+      el.appendChild(b);
+    }
+    $("check").disabled = S.slots.length !== 4 || locked();
+    $("clear").disabled = !S.slots.length || locked();
+  }
+  const locked = () => S.phase !== "running";
+  function renderBoard() {
+    const el = $("board"); el.innerHTML = "";
+    ORDER.forEach(id => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "key"; b.id = "key" + id;
+      b.innerHTML = keyHTML(id); b.setAttribute("aria-label", keyLabel(id));
+      b.disabled = S.slots.includes(id) || locked();
+      b.addEventListener("click", () => { if (S.slots.length >= 4 || locked()) return; S.slots.push(id); click(); save(); renderSlots(); renderBoard(); setMsg(""); });
+      el.appendChild(b);
+    });
+  }
+  function renderLog() {
+    $("sErr").textContent = S.errors; $("sHint").textContent = S.hints; $("sPen").textContent = fmt(S.penMs).replace("+","");
+    const el = $("log");
+    el.innerHTML = S.log.length ? S.log.slice().reverse().map(e => `<li class="${e.k}"><time>${e.t}</time><span>${e.m}</span></li>`).join("") : `<li class="empty">Noch keine Einträge. Hier erscheinen Codeversuche, Hinweise und Zeitstrafen.</li>`;
+  }
+  function renderControls() {
+    document.querySelectorAll("#durSeg button").forEach(b => { b.setAttribute("aria-pressed", String(+b.dataset.min === S.dur)); b.disabled = S.phase !== "ready"; });
+    $("pause").textContent = S.phase === "paused" ? "Weiter" : "Pause";
+    $("pause").disabled = !(S.phase === "running" || S.phase === "paused");
+    $("hint").disabled = $("minus").disabled = $("plus").disabled = !(S.phase === "running" || S.phase === "paused");
+    $("sound").textContent = S.sound ? "Ton an" : "Ton aus"; $("sound").setAttribute("aria-pressed", String(S.sound));
+    $("ovStart").hidden = S.phase !== "ready";
+    $("startTime").textContent = fmt(S.dur * 60000);
+  }
+  let alarmed = false;
+  function tick() {
+    const r = remaining(), clock = $("clock");
+    $("time").textContent = fmt(r);
+    clock.classList.toggle("over", r < 0 && S.phase !== "ready");
+    clock.classList.toggle("warn", r >= 0 && r < 5 * 60000 && S.phase === "running");
+    clock.classList.toggle("paused", S.phase === "paused");
+    $("clockLbl").textContent = r < 0 && S.phase !== "ready" ? "Zeit abgelaufen" : "Restzeit";
+    $("clockSub").textContent = S.phase === "ready" ? "Noch nicht gestartet" : S.phase === "paused" ? "Pausiert" : S.phase === "won" ? "Geschafft!" : (r < 0 ? "Schichtwechsel! Weiterspielen erlaubt" : "Teil " + (S.part + 1) + " von 3");
+    if (S.phase === "running" && r < 0 && !alarmed) { alarmed = true; alarm(); addLog("bad", "60 Minuten vorbei – die neue Schicht ist da. Die Uhr zählt jetzt hoch."); }
+    if (r >= 0) alarmed = false;
+  }
+  const setMsg = (t, k = "") => { const m = $("msg"); m.textContent = t; m.className = "msg " + k; };
+  const addLog = (k, m) => { S.log.push({ k, m, t: clockStamp() }); save(); renderLog(); };
+  const flash = cls => { const c = $("console"); c.classList.remove("flash-ok","flash-bad","shake"); void c.offsetWidth; c.classList.add(cls); if (cls === "flash-bad") c.classList.add("shake"); setTimeout(() => c.classList.remove(cls, "shake"), 900); };
+  const describe = ids => ids.map(id => { const [sh,col,num,l] = KEYS[id]; return `${l}/${num}`; }).join(" · ");
+  function renderAll() { renderParts(); renderSlots(); renderBoard(); renderLog(); renderControls(); tick(); }
+
+  // ---------- Aktionen ----------
+  $("start").addEventListener("click", () => {
+    audio(); S.phase = "running"; S.startedAt = now(); S.pausedMs = 0; save();
+    addLog("info", `Zeit gestartet (${S.dur} Min.). Umschlag 1 darf geöffnet werden.`);
+    tone(660, 0, .15); tone(990, .15, .3); requestWake(); renderAll();
+  });
+  $("check").addEventListener("click", () => {
+    if (S.slots.length !== 4 || locked()) return;
+    const ids = S.slots.slice(), p = S.part;
+    if (isRight(p, ids)) {
+      fanfare(); flash("flash-ok");
+      addLog("ok", `Code ${p+1} richtig (${describe(ids)}).`);
+      S.slots = [];
+      if (p === 2) { S.phase = "won"; S.endAt = now(); save(); renderAll(); showWin(); return; }
+      S.part = p + 1; save();
+      $("okTitle").textContent = `Code ${p+1} richtig!`;
+      $("okText").textContent = PARTS[p].ok;
+      $("okEnv").textContent = `Öffnet jetzt Umschlag ${p+2}`;
+      $("ovOk").hidden = false; $("okBtn").focus();
+      renderAll();
+    } else {
+      buzzer(); flash("flash-bad");
+      S.errors++; S.penMs += 60000;
+      addLog("bad", `Code ${p+1} falsch (${describe(ids)}) – 1 Minute Zeitstrafe.`);
+      setMsg("Falscher Code! 1 Minute Zeitstrafe. Prüft eure Lösungen und versucht es noch einmal.", "bad");
+      save(); renderLog(); tick();
+    }
+  });
+  $("okBtn").addEventListener("click", () => { $("ovOk").hidden = true; setMsg(`Teil ${S.part + 1} läuft: Löst die Rätsel aus Umschlag ${S.part + 1}.`, "ok"); });
+  $("clear").addEventListener("click", () => { if (locked()) return; S.slots = []; save(); renderSlots(); renderBoard(); setMsg(""); });
+  $("pause").addEventListener("click", () => {
+    if (S.phase === "running") { S.phase = "paused"; S.pauseAt = now(); addLog("info", "Pause."); }
+    else if (S.phase === "paused") { S.pausedMs += now() - S.pauseAt; S.phase = "running"; addLog("info", "Weiter geht's."); }
+    save(); renderAll();
+  });
+  $("hint").addEventListener("click", () => { S.hints++; S.penMs += 120000; addLog("info", `Hinweis für Teil ${S.part + 1} – 2 Minuten abgezogen.`); tone(520, 0, .2); save(); renderLog(); tick(); });
+  $("minus").addEventListener("click", () => { S.penMs += 60000; addLog("info", "Spielleitung: 1 Minute abgezogen."); save(); renderLog(); tick(); });
+  $("plus").addEventListener("click", () => { S.penMs -= 60000; addLog("info", "Spielleitung: 1 Minute gutgeschrieben."); save(); renderLog(); tick(); });
+  $("sound").addEventListener("click", () => { S.sound = !S.sound; save(); renderControls(); if (S.sound) { audio(); click(); } });
+  document.querySelectorAll("#durSeg button").forEach(b => b.addEventListener("click", () => { if (S.phase !== "ready") return; S.dur = +b.dataset.min; save(); renderControls(); tick(); }));
+  $("fs").addEventListener("click", () => { const d = document.documentElement; try { (document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen()).catch(() => {}); } catch (e) {} });
+
+  // Neues Spiel mit Bestätigung auf der Seite
+  const RESET_BTN = `<button class="btn danger" id="reset" type="button">Neues Spiel</button>`;
+  const RESET_ASK = `<div class="confirm"><span>Spielstand wirklich löschen?</span><button class="btn danger" id="resetYes" type="button">Ja, neu starten</button><button class="btn ghost" id="resetNo" type="button">Abbrechen</button></div>`;
+  $("resetRow").addEventListener("click", e => {
+    const t = e.target.closest("button"); if (!t) return;
+    if (t.id === "reset") { $("resetRow").innerHTML = RESET_ASK; $("resetYes").focus(); }
+    else if (t.id === "resetNo") { $("resetRow").innerHTML = RESET_BTN; $("reset").focus(); }
+    else if (t.id === "resetYes") {
+      const snd = S.sound, dur = S.dur; S = fresh(); S.sound = snd; S.dur = dur; save();
+      $("resetRow").innerHTML = RESET_BTN; $("ovWin").hidden = true; $("ovOk").hidden = true; setMsg(""); alarmed = false; renderAll();
+    }
+  });
+
+  function showWin() {
+    const r = remaining();
+    $("winTime").textContent = r >= 0 ? fmt(r) + " übrig" : "Überzogen: " + fmt(r).replace("+","");
+    $("winText").textContent = r >= 0 ? "Der Blaue Komet ist in eurer Tasche – und ihr seid über alle Dächer, bevor die neue Schicht kommt." : "Der Komet ist eurer – aber die neue Schicht war schon im Haus. Knapp war's!";
+    $("winStats").textContent = `${S.errors} Fehlversuch${S.errors === 1 ? "" : "e"} · ${S.hints} Hinweis${S.hints === 1 ? "" : "e"} · Gesamtzeit ${fmt(elapsed() + S.penMs).replace("+","")}`;
+    $("ovWin").hidden = false; $("winClose").focus();
+  }
+  $("winClose").addEventListener("click", () => { $("ovWin").hidden = true; });
+
+  let wake = null;
+  async function requestWake() { try { wake = await navigator.wakeLock?.request("screen"); } catch (e) {} }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.phase === "running") requestWake(); });
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") { $("ovOk").hidden = true; }
+    if (e.key === "Enter" && !$("ovOk").hidden) { e.preventDefault(); $("okBtn").click(); }
+  });
+
+  renderAll();
+  if (S.phase === "won") showWin();
+  setInterval(tick, 250);
+})();
+</script>
+</body>
+</html>
